@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Exportar PDF</title>
+<style>
+    body { 
+        font-family: Helvetica, Arial, sans-serif; 
+        font-size: 14px; 
+        margin: 20px; 
+    }
+    table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        margin-top: 1rem; 
+    }
+    th, td { 
+        border: 1px solid #ccc; 
+        padding: 8px; 
+        text-align: left; 
+    }
+    th { 
+        background: #eee; 
+    }
+</style>
+
+</head>
+<body>
+    <h1>Histórico de Escaneos</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>IP</th>
+                <th>Puerto</th>
+                <th>Fecha</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for fila in datos %}
+            <tr>
+                <td>{{ fila.ip }}</td>
+                <td>{{ fila.puerto }}</td>
+                <td>{{ fila.fecha_escaneo }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

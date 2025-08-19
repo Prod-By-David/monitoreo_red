@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>Detalles del dispositivo {{ ip }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">Monitoreo Red</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link active" href="/dashboard">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/historico">Histórico</a></li>
+                <li class="nav-item"><a class="nav-link" href="/historial">Historial de dispositivos</a></li>
+                <li class="nav-item"><a class="nav-link" href="/capturas">Capturas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/anotaciones">Anotaciones</a></li>
+                <li class="nav-item"><a class="nav-link" href="/estadisticas">Estadísticas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/reporte">Reportes</a></li>
+            </ul>
+            {% if session.usuario %}
+            <span class="navbar-text me-3">
+                Sesión: <strong>{{ session.usuario }}</strong>
+            </span>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<main class="container">
+    <h1>Detalles del dispositivo {{ ip }}</h1>
+
+    {% if datos %}
+        <p><strong>Primera detección:</strong> {{ primer }}</p>
+        <p><strong>Última detección:</strong> {{ ultimo }}</p>
+
+        <!-- Actividad temporal del dispositivo -->
+        <h4 class="mt-4">📊 Actividad detectada en el tiempo</h4>
+        <canvas id="graficoActividadPresencia" height="100"></canvas>
+
+        <!-- Historial de puertos -->
+        <h4 class="mt-4">📚 Historial de escaneos de puertos</h4>
+        <canvas id="graficoActividad" height="100" class="mb-4"></canvas>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Puerto abierto</th>
+                    <th>Fecha del escaneo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in datos %}
+                <tr>
+                    <td>{{ fila.puerto }}</td>
+                    <td>{{ fila.fecha_escaneo_formateada }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No hay datos de escaneo para este dispositivo.</p>
+    {% endif %}
+
+    <p><a href="{{ url_for('main.dashboard') }}" class="btn btn-link">← Volver al dashboard</a></p>
+</main>
+
+<!-- Datos JSON para el gráfico -->
+<script id="datos-json" type="application/json">
+    {{ datos_grafico | tojson | safe }}
+</script>
+
+<!-- Script del gráfico -->
+<script>
+    const datos = JSON.parse(document.getElementById('datos-json').textContent);
+    const ctx = document.getElementById('graficoActividad');
+
+    const fechas = datos.map(d => d.fecha);
+    const puertos = datos.map(d => parseInt(d.puerto));
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: fechas,
+            datasets: [{
+                label: 'Puertos abiertos detectados',
+                data: puertos,
+                borderColor: 'rgb(75, 192, 192)',
+                fill: false,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            locale: 'es-ES',
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Histórico de Puertos Abiertos'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Puerto: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Fecha y hora del escaneo'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Puerto'
+                    },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

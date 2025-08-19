@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Capturas de Imagen</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+  <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">Monitoreo Red</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link active" href="/dashboard">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/historico">Histórico</a></li>
+                <li class="nav-item"><a class="nav-link" href="/historial">Historial de dispositivos</a></li>
+                <li class="nav-item"><a class="nav-link" href="/capturas">Capturas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/anotaciones">Anotaciones</a></li>
+                <li class="nav-item"><a class="nav-link" href="/estadisticas">Estadísticas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/reporte">Reportes</a></li>
+            </ul>
+              {% if session.usuario %}
+              <span class="navbar-text me-3">
+              Sesión: <strong>{{ session.usuario }}</strong>
+              </span>
+              <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+              {% endif %}
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <h1>📷 Capturas de Imagen</h1>
+
+    <form action="" method="post" enctype="multipart/form-data" class="my-4">
+        <div class="mb-3">
+            <label class="form-label">Selecciona imagen:</label>
+            <input class="form-control" type="file" name="imagen" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Descripción (opcional):</label>
+            <textarea class="form-control" name="descripcion" rows="2"></textarea>
+        </div>
+        <button class="btn btn-primary" type="submit">Subir</button>
+    </form>
+
+    <div class="row">
+        {% for img in imagenes %}
+        <div class="col-md-4 mb-3">
+            <div class="card position-relative">
+                <!-- Menú de opciones -->
+                <div class="dropdown position-absolute end-0 mt-2 me-2">
+                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        ⋮
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editarModal{{ img.id }}">✏️ Editar</a></li>
+                        <li>
+                            <form action="{{ url_for('main.eliminar_captura', id=img.id) }}" method="post" onsubmit="return confirm('¿Eliminar esta imagen?');">
+                                <button class="dropdown-item text-danger" type="submit">🗑️ Eliminar</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+
+                <img src="{{ url_for('static', filename='uploads/' ~ img.nombre_archivo) }}" class="card-img-top" alt="Captura">
+                <div class="card-body">
+                    <p class="card-text">{{ img.descripcion }}</p>
+                    <small class="text-muted">Subida: {{ img.fecha_subida }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Modales de edición por imagen -->
+    {% for img in imagenes %}
+    <div class="modal fade" id="editarModal{{ img.id }}" tabindex="-1" aria-labelledby="editarLabel{{ img.id }}" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form action="{{ url_for('main.editar_captura', id=img.id) }}" method="post" enctype="multipart/form-data">
+            <div class="modal-header">
+              <h5 class="modal-title" id="editarLabel{{ img.id }}">Editar captura</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label>Descripción:</label>
+                <textarea class="form-control" name="descripcion">{{ img.descripcion }}</textarea>
+              </div>
+              <div class="mb-3">
+                <label>Reemplazar imagen (opcional):</label>
+                <input class="form-control" type="file" name="imagen">
+                <img src="{{ url_for('static', filename='uploads/' ~ img.nombre_archivo) }}" class="img-fluid mt-2">
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-primary">Guardar cambios</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-link mt-3">&larr; Volver al dashboard</a>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

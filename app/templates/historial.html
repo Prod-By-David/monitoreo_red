@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Historial de Dispositivos</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/">Monitoreo Red</a>
+    <div class="collapse navbar-collapse justify-content-between">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link" href="/historico">Histórico</a></li>
+        <li class="nav-item"><a class="nav-link active" href="/historial">Historial de dispositivos</a></li>
+        <li class="nav-item"><a class="nav-link" href="/capturas">Capturas</a></li>
+        <li class="nav-item"><a class="nav-link" href="/anotaciones">Anotaciones</a></li>
+        <li class="nav-item"><a class="nav-link" href="/estadisticas">Estadísticas</a></li>
+        <li class="nav-item"><a class="nav-link" href="/reporte">Reportes</a></li>
+      </ul>
+      {% if session.usuario %}
+      <span class="navbar-text me-3">
+        Sesión: <strong>{{ session.usuario }}</strong>
+      </span>
+      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<main class="container">
+  <h1 class="mb-4">Historial de dispositivos detectados</h1>
+
+  {% if historial %}
+  <table class="table table-bordered table-hover">
+    <thead>
+      <tr>
+        <th>IP</th>
+        <th>MAC</th>
+        <th>Fabricante</th>
+        <th>Primera detección</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in historial %}
+      <tr>
+        <td>{{ d.ip }}</td>
+        <td>{{ d.mac }}</td>
+        <td>{{ d.fabricante }}</td>
+        <td>{{ d.primera_vez_detectado.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+        <td>
+          <button class="btn btn-outline-danger btn-sm btn-bloqueo" data-ip="{{ d.ip }}">
+            Cargando...
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No hay historial disponible.</p>
+  {% endif %}
+
+  <p class="mt-4"><a href="/" class="btn btn-link">← Volver al inicio</a></p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  fetch('/ips_bloqueadas')
+    .then(res => res.json())
+    .then(data => {
+      const bloqueadas = data.ips_bloqueadas || [];
+      document.querySelectorAll('.btn-bloqueo').forEach(btn => {
+        const ip = btn.dataset.ip;
+        const estaBloqueada = bloqueadas.includes(ip);
+        actualizarBoton(btn, ip, estaBloqueada);
+      });
+    });
+
+  function actualizarBoton(btn, ip, bloqueada) {
+    btn.textContent = bloqueada ? 'Desbloquear IP' : 'Bloquear IP';
+    btn.classList.toggle('btn-outline-danger', !bloqueada);
+    btn.classList.toggle('btn-outline-secondary', bloqueada);
+
+    btn.onclick = () => {
+      const url = bloqueada ? '/desbloquear_ip' : '/bloquear_ip';
+      const formData = new FormData();
+      formData.append('ip', ip);
+
+      fetch(url, { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(() => {
+          actualizarBoton(btn, ip, !bloqueada);
+        })
+        .catch(() => alert("Error al procesar la IP"));
+    };
+  }
+});
+</script>
+</body>
+</html>

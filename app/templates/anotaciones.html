@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>Anotaciones</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <style>
+        .nota {
+            position: relative;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+            margin-bottom: 1rem;
+        }
+        .menu-opciones {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            cursor: pointer;
+        }
+        .editar-textarea {
+            width: 100%;
+            min-height: 80px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Monitoreo Red</a>
+            <div class="collapse navbar-collapse justify-content-between">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/historico">Histórico</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/historial">Historial de dispositivos</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/capturas">Capturas</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/anotaciones">Anotaciones</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/estadisticas">Estadísticas</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/reporte">Reportes</a></li>
+                </ul>
+                {% if session.usuario %}
+                <span class="navbar-text me-3">
+                    Sesión: <strong>{{ session.usuario }}</strong>
+                </span>
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h1>📝 Bloc de Notas</h1>
+
+    <form action="{{ url_for('main.anotaciones') }}" method="post" class="mb-4">
+        <div class="mb-3">
+            <label for="contenido" class="form-label">Nueva anotación:</label>
+            <textarea name="contenido" id="contenido" class="form-control" rows="3" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Agregar anotación</button>
+    </form>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div id="notas-lista">
+        {% for nota in notas %}
+        <div class="nota" data-id="{{ nota.id }}">
+            <div class="menu-opciones dropdown">
+                <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    &#8942;
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item editar-btn" href="#">Editar</a></li>
+                    <li><a class="dropdown-item eliminar-btn" href="#">Eliminar</a></li>
+                </ul>
+            </div>
+            <div class="contenido-nota">{{ nota.contenido|e|replace('\n', '<br>')|safe }}</div>
+            <small class="text-muted">Creada: {{ nota.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</small>
+        </div>
+        {% else %}
+        <p>No hay anotaciones todavía.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    document.querySelectorAll('.editar-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const notaDiv = this.closest('.nota');
+            const contenidoDiv = notaDiv.querySelector('.contenido-nota');
+            const id = notaDiv.getAttribute('data-id');
+
+            // Si ya hay textarea, no hacer nada
+            if (notaDiv.querySelector('textarea')) return;
+
+            const textoOriginal = contenidoDiv.innerText.trim();
+
+            const textarea = document.createElement('textarea');
+            textarea.className = 'editar-textarea form-control';
+            textarea.value = textoOriginal;
+
+            // Crear botones guardar/cancelar
+            const btnGuardar = document.createElement('button');
+            btnGuardar.textContent = 'Guardar';
+            btnGuardar.className = 'btn btn-sm btn-success me-2 mt-2';
+
+            const btnCancelar = document.createElement('button');
+            btnCancelar.textContent = 'Cancelar';
+            btnCancelar.className = 'btn btn-sm btn-secondary mt-2';
+
+            contenidoDiv.innerHTML = '';
+            contenidoDiv.appendChild(textarea);
+            contenidoDiv.appendChild(btnGuardar);
+            contenidoDiv.appendChild(btnCancelar);
+
+            btnGuardar.addEventListener('click', () => {
+                const nuevoContenido = textarea.value.trim();
+                if (!nuevoContenido) {
+                    alert('El contenido no puede estar vacío.');
+                    return;
+                }
+                fetch(`{{ url_for('main.editar_anotacion', id=0) }}`.replace('0', id), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: new URLSearchParams({contenido: nuevoContenido})
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'ok') {
+                        contenidoDiv.innerHTML = nuevoContenido.replace(/\n/g, '<br>');
+                    } else {
+                        alert('Error al editar la anotación');
+                    }
+                })
+                .catch(() => alert('Error al editar la anotación'));
+            });
+
+            btnCancelar.addEventListener('click', () => {
+                contenidoDiv.innerHTML = textoOriginal.replace(/\n/g, '<br>');
+            });
+        });
+    });
+
+    document.querySelectorAll('.eliminar-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!confirm('¿Estás seguro de eliminar esta anotación?')) return;
+
+            const notaDiv = this.closest('.nota');
+            const id = notaDiv.getAttribute('data-id');
+
+            fetch(`{{ url_for('main.eliminar_anotacion', id=0) }}`.replace('0', id), {
+                method: 'POST',
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    notaDiv.remove();
+                } else {
+                    alert('Error al eliminar la anotación');
+                }
+            })
+            .catch(() => alert('Error al eliminar la anotación'));
+        });
+    });
+</script>
+</body>
+</html>

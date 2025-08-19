@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reportes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">Monitoreo Red</a>
+        <div class="collapse navbar-collapse justify-content-between">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link active" aria-current="page" href="/dashboard">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/historico">Histórico</a></li>
+                <li class="nav-item"><a class="nav-link" href="/historial">Historial de dispositivos</a></li>
+                <li class="nav-item"><a class="nav-link" href="/capturas">Capturas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/anotaciones">Anotaciones</a></li>
+                <li class="nav-item"><a class="nav-link" href="/estadisticas">Estadísticas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/reporte">Reportes</a></li>
+            </ul>
+            {% if session.usuario %}
+            <span class="navbar-text me-3">
+                Sesión: <strong>{{ session.usuario }}</strong>
+            </span>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <h1>📄 Generar Reporte</h1>
+
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-4">
+            <label for="inicio" class="form-label">Desde:</label>
+            <input type="date" class="form-control" name="inicio" id="inicio" value="{{ inicio }}">
+        </div>
+        <div class="col-md-4">
+            <label for="fin" class="form-label">Hasta:</label>
+            <input type="date" class="form-control" name="fin" id="fin" value="{{ fin }}">
+        </div>
+        <div class="col-md-4 align-self-end">
+            <button class="btn btn-primary" type="submit">Generar</button>
+        </div>
+    </form>
+
+    {% if datos %}
+        <div class="mb-3">
+            <a href="{{ url_for('main.reporte_pdf', inicio=inicio, fin=fin) }}" class="btn btn-outline-danger btn-sm">📄 Exportar PDF</a>
+            <a href="{{ url_for('main.reporte_csv', inicio=inicio, fin=fin) }}" class="btn btn-outline-success btn-sm">🧾 Exportar CSV</a>
+        </div>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>IP</th>
+                    <th>Puerto</th>
+                    <th>Fecha del escaneo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in datos %}
+                <tr>
+                    <td>{{ fila.ip }}</td>
+                    <td>{{ fila.puerto }}</td>
+                    <td>{{ fila.fecha_escaneo.strftime('%d/%m/%Y %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted">No hay datos para el rango seleccionado.</p>
+    {% endif %}
+
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-link mt-3">← Volver al dashboard</a>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>Dashboard</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+    <style>
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .online { background-color: #28a745; }
+        .offline { background-color: #dc3545; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">Monitoreo Red</a>
+        <div class="collapse navbar-collapse justify-content-between">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link active" href="/dashboard">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/historico">Histórico</a></li>
+                <li class="nav-item"><a class="nav-link" href="/historial">Historial de dispositivos</a></li>
+                <li class="nav-item"><a class="nav-link" href="/capturas">Capturas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/anotaciones">Anotaciones</a></li>
+                <li class="nav-item"><a class="nav-link" href="/estadisticas">Estadísticas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/reporte">Reportes</a></li>
+            </ul>
+            {% if session.usuario %}
+            <span class="navbar-text me-3">
+                Sesión: <strong>{{ session.usuario }}</strong>
+            </span>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<main class="container">
+    <h1 class="mb-4">Dispositivos activos en la red</h1>
+
+    <form id="toggle-escaneo-form" method="POST" action="/toggle-escaneo">
+        <button type="submit" id="btn-escaneo" class="btn btn-primary mb-3">
+            {{ "Desactivar escaneo automático" if escaneo_activo else "Activar escaneo automático" }}
+        </button>
+    </form>
+
+    {% if alertas %}
+    <div class="mb-4">
+        {% for alerta in alertas %}
+        <div class="alert alert-info">
+            <strong>{{ alerta.tipo }}:</strong> {{ alerta.mensaje }}
+            {% if alerta.ip %} (IP: {{ alerta.ip }}){% endif %}
+            <br><small class="text-muted">{{ alerta.fecha.strftime('%d/%m/%Y %H:%M:%S') }}</small>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% set offline_count = dispositivos | selectattr('online', 'equalto', false) | list | length %}
+    {% if offline_count > 0 %}
+    <div class="alert alert-warning">
+        ⚠️ Hay {{ offline_count }} dispositivo{{ 's' if offline_count > 1 else '' }} offline.
+    </div>
+    {% endif %}
+
+    <form method="get" class="mb-3">
+        <label for="filtro">Filtrar dispositivos:</label>
+        <select id="filtro" name="filtro" class="form-select" onchange="this.form.submit()">
+            <option value="todos" {% if filtro == 'todos' %}selected{% endif %}>Todos</option>
+            <option value="online" {% if filtro == 'online' %}selected{% endif %}>Solo online</option>
+            <option value="offline" {% if filtro == 'offline' %}selected{% endif %}>Solo offline</option>
+        </select>
+    </form>
+
+    {% if dispositivos %}
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+        {% for dispositivo in dispositivos %}
+        <div class="col">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <span class="status-indicator {{ 'online' if dispositivo.online else 'offline' }}"></span>
+                        💡 <a href="{{ url_for('main.dispositivo_detalle', ip=dispositivo.ip) }}">
+                            {{ dispositivo.hostname if dispositivo.hostname else dispositivo.ip }}
+                        </a>
+                        {% if dispositivo.hostname %}
+                        <small class="text-muted d-block">{{ dispositivo.ip }}</small>
+                        {% endif %}
+                    </h5>
+
+                    {% if dispositivo.puertos %}
+                    <p><strong>🔓 Puertos abiertos:</strong>
+                        {% for p in dispositivo.puertos %}
+                            {{ p.numero }} ({{ p.nombre }}){% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </p>
+                    {% else %}
+                    <p><strong>🔓 Puertos abiertos:</strong> Ninguno</p>
+                    {% endif %}
+
+                    <button class="btn btn-outline-danger btn-sm btn-bloqueo" data-ip="{{ dispositivo.ip }}">
+                        Cargando estado...
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No se detectaron dispositivos activos en la red.</p>
+    {% endif %}
+
+    <p class="mt-4"><a href="/" class="btn btn-link">← Volver al inicio</a></p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+setInterval(() => { location.reload(); }, 5000);
+
+let escaneoActivo = "{{ 'true' if escaneo_activo else 'false' }}" === "true";
+const btn = document.getElementById('btn-escaneo');
+const form = document.getElementById('toggle-escaneo-form');
+
+form.addEventListener('submit', function(event) {
+  event.preventDefault();
+  btn.disabled = true;
+  fetch(form.action, { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+      escaneoActivo = data.escaneo_activo;
+      btn.textContent = escaneoActivo ? "Desactivar escaneo automático" : "Activar escaneo automático";
+    })
+    .catch(() => alert("Error en la conexión."))
+    .finally(() => btn.disabled = false);
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  fetch('/ips_bloqueadas')
+    .then(res => res.json())
+    .then(data => {
+      const bloqueadas = data.ips_bloqueadas || [];
+      document.querySelectorAll('.btn-bloqueo').forEach(btn => {
+        const ip = btn.dataset.ip;
+        const estaBloqueada = bloqueadas.includes(ip);
+        actualizarBoton(btn, ip, estaBloqueada);
+      });
+    });
+
+  function actualizarBoton(btn, ip, bloqueada) {
+    btn.textContent = bloqueada ? 'Desbloquear IP' : 'Bloquear IP';
+    btn.classList.toggle('btn-outline-danger', !bloqueada);
+    btn.classList.toggle('btn-outline-secondary', bloqueada);
+
+    btn.onclick = () => {
+      const url = bloqueada ? '/desbloquear_ip' : '/bloquear_ip';
+      const formData = new FormData();
+      formData.append('ip', ip);
+
+      fetch(url, { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(() => {
+          actualizarBoton(btn, ip, !bloqueada);
+        })
+        .catch(() => alert("Error al procesar la IP"));
+    };
+  }
+});
+</script>
+</body>
+</html>

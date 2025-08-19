@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>Histórico de escaneos</title>
+
+    <!-- Bootstrap CSS para estilos -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Chart.js para gráficas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            padding: 2rem;
+        }
+        .filter-input {
+            max-width: 300px;
+            margin-bottom: 1rem;
+        }
+        nav.pagination-nav {
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar de navegación -->
+<nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">Monitoreo Red</a>
+        <div class="collapse navbar-collapse justify-content-between">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link active" aria-current="page" href="/dashboard">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/historico">Histórico</a></li>
+                <li class="nav-item"><a class="nav-link" href="/historial">Historial de dispositivos</a></li>
+                <li class="nav-item"><a class="nav-link" href="/capturas">Capturas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/anotaciones">Anotaciones</a></li>
+                <li class="nav-item"><a class="nav-link" href="/estadisticas">Estadísticas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/reporte">Reportes</a></li>
+            </ul>
+            {% if session.usuario %}
+            <span class="navbar-text me-3">
+                Sesión: <strong>{{ session.usuario }}</strong>
+            </span>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+    <h1>Histórico de escaneos por dispositivo</h1>
+
+    <div class="mb-3">
+    <a class="btn btn-sm btn-outline-primary" href="/exportar/csv">📥 Exportar CSV</a>
+    <a class="btn btn-sm btn-outline-danger" href="/exportar/pdf">📄 Exportar PDF</a>
+    </div>
+
+    <!-- Campo de filtro por IP -->
+    <input
+        type="text"
+        id="filterInput"
+        class="form-control filter-input"
+        placeholder="Filtrar por IP..."
+        onkeyup="filterTable()"
+    />
+
+    <!-- Gráfica temporal -->
+    {% if datos %}
+    <div class="mb-5">
+        <h4>Visualización por IP</h4>
+        <canvas id="grafica" height="100"></canvas>
+    </div>
+    {% endif %}
+
+    <!-- Tabla con datos históricos -->
+    {% if datos %}
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered" id="historicoTable">
+            <thead class="table-light">
+                <tr>
+                    <th>IP del dispositivo</th>
+                    <th>Puerto abierto</th>
+                    <th>Fecha del escaneo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in datos %}
+                <tr>
+                    <td>{{ fila.ip }}</td>
+                    <td>{{ fila.puerto }}</td>
+                    <td>{{ fila.fecha_escaneo }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginación generada dinámicamente -->
+    <nav class="pagination-nav" aria-label="Page navigation example">
+        <ul class="pagination justify-content-center" id="pagination"></ul>
+    </nav>
+
+    {% else %}
+    <p>No hay datos disponibles.</p>
+    {% endif %}
+
+    <p><a href="/">← Volver al inicio</a></p>
+
+    {% if datos %}
+<!-- Carga Chart.js desde CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Contenedor de la gráfica -->
+<canvas id="grafica" height="100"></canvas>
+
+<script>
+    // Convertimos los datos de Jinja a JSON seguro
+    const datos = JSON.parse(`{{ datos|tojson|safe }}`);
+
+    // Agrupar por IP
+    const agrupado = {};
+    datos.forEach(item => {
+        if (!agrupado[item.ip]) agrupado[item.ip] = [];
+        agrupado[item.ip].push({
+            x: item.fecha_escaneo,
+            y: item.puerto ? 1 : 0
+        });
+    });
+
+    // Colores para cada IP (rotan)
+    const colores = ['#007bff', '#28a745', '#dc3545', '#ffc107', '#6f42c1', '#fd7e14'];
+    const datasets = Object.entries(agrupado).map(([ip, puntos], i) => ({
+        label: ip,
+        data: puntos,
+        borderColor: colores[i % colores.length],
+        tension: 0.2,
+        fill: false
+    }));
+
+    // Crear gráfica
+    const ctx = document.getElementById("grafica").getContext("2d");
+    new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+            parsing: false,
+            responsive: true,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        tooltipFormat: 'DD/MM/YYYY HH:mm:ss',
+                        displayFormats: {
+                            minute: 'HH:mm',
+                            hour: 'HH:mm',
+                            day: 'DD/MM'
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Fecha de escaneo'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Puerto abierto (1 = sí)'
+                    },
+                    ticks: {
+                        stepSize: 1
+                    },
+                    min: 0,
+                    max: 1
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Histórico de puertos abiertos por IP'
+                },
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
+
+    </script>
+</body>
+</html>
